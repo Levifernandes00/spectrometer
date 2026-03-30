@@ -1,0 +1,9 @@
+{
+  "folder": "/Users/levi/Documents/Projects/CelerPro/arca/integrations/spectrometer/tests/assets",
+  "device": {
+    "name": "Spectrometer LAB-01",
+    "place": "LABORAT\u00d3RIO"
+  },
+  "identifier": "MacBook-Pro-de-Levi.local-fc2ca9ad",
+  "database": "spectrometer.db"
+}

@@ -1,0 +1,14 @@
+{
+  "folder": "/path/to/spectrometer/output",
+  "device": {
+    "name": "Spectrometer LAB-01",
+    "place": "LABORATÓRIO",
+    "category": "Spectrometer"
+  },
+  "identifier": "SPECT-LAB-01",
+  "database": "spectrometer.db",
+  "supabase": {
+    "url": "https://your-project.supabase.co",
+    "key": "your-anon-key"
+  }
+}

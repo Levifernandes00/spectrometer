@@ -1,0 +1,8 @@
+{
+  "folder": "/path/to/spectrometer/output",
+  "device": {
+    "name": "Spectrometer LAB-01",
+    "place": "LABORATÓRIO"
+  },
+  "database": "spectrometer.db"
+}
