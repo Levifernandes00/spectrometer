@@ -9,7 +9,7 @@
   "database": "spectrometer.db",
   "websocket": {
     "enabled": false,
-    "url": "ws://127.0.0.1:8765",
+    "url": "ws://192.168.1.50:9001",
     "open_timeout": 3
   },
   "supabase": {
