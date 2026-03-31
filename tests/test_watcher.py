@@ -18,6 +18,7 @@ def test_is_supported_file():
     assert is_supported_file("sample.pdf") is True
     assert is_supported_file("sample.txt") is True
     assert is_supported_file("sample.csv") is False
+    
 
 
 def test_event_handler_calls_callback_for_supported_files():
