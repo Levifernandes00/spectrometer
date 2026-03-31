@@ -15,6 +15,7 @@ from db import (
     _ensure_tables_local,
 )
 from parser import find_files, parse_file
+from websocket_publisher import publish_batch_material
 
 
 def process_folder(config: dict) -> int:
@@ -77,6 +78,7 @@ def process_folder(config: dict) -> int:
                 results,
                 datetime_iso,
             )
+            publish_batch_material(config, parsed.batch, parsed.material)
             processed += 1
         elif local_db:
             if has_results_for_device_datetime_local(local_db, device_id, datetime_iso):
@@ -93,6 +95,7 @@ def process_folder(config: dict) -> int:
                 results,
                 datetime_iso,
             )
+            publish_batch_material(config, parsed.batch, parsed.material)
             processed += 1
 
     if local_db:

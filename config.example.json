@@ -7,8 +7,15 @@
   },
   "identifier": "SPECT-LAB-01",
   "database": "spectrometer.db",
+  "websocket": {
+    "enabled": false,
+    "url": "ws://127.0.0.1:8765",
+    "open_timeout": 3
+  },
   "supabase": {
-    "url": "https://your-project.supabase.co",
-    "key": "your-anon-key"
+    "url": "https://bfbpunkaatagowuqxetu.supabase.co",
+    "key": "your-anon-key",
+    "email": "user@example.com",
+    "password": ""
   }
 }

@@ -10,11 +10,29 @@ from config import get_device_identifier
 
 
 def get_supabase(config: dict) -> Client | None:
-    url = os.environ.get("SUPABASE_URL") or (config.get("supabase") or {}).get("url")
-    key = os.environ.get("SUPABASE_KEY") or (config.get("supabase") or {}).get("key")
+    supabase_cfg = config.get("supabase") or {}
+    url = os.environ.get("SUPABASE_URL") or supabase_cfg.get("url")
+    key = os.environ.get("SUPABASE_KEY") or supabase_cfg.get("key")
+    email = os.environ.get("SUPABASE_EMAIL") or supabase_cfg.get("email")
+    password = os.environ.get("SUPABASE_PASSWORD") or supabase_cfg.get("password")
+
     if not url or not key:
         return None
-    return create_client(url, key)
+
+    # Optional Supabase mode: require user credentials to enable cloud sync.
+    if not email or not str(email).strip() or not password or not str(password).strip():
+        print("Supabase credentials missing (email/password); running in local-only mode.")
+        return None
+
+    try:
+        supabase = create_client(url, key)
+        supabase.auth.sign_in_with_password(
+            {"email": str(email).strip(), "password": str(password)}
+        )
+        return supabase
+    except Exception as exc:
+        print(f"Supabase auth failed; running in local-only mode. Reason: {exc}")
+        return None
 
 
 def get_local_db(config: dict) -> sqlite3.Connection | None:

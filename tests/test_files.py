@@ -44,6 +44,7 @@ def test_asset_parsing_matches_expected_properties(asset_path: Path):
 
     assert parsed is not None, f"Parser returned None for {asset_path.name}"
     assert parsed.batch == expected["batch"]
+    assert parsed.material == expected["material"]
     assert parsed.date == expected["date"]
     assert parsed.time == expected["time"]
     assert parsed.results == expected["results"]

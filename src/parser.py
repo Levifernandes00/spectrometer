@@ -8,8 +8,8 @@ from pathlib import Path
 @dataclass
 class ParsedFile:
     """Parsed content from a spectrometer file."""
-
     batch: str
+    material: str
     date: str
     time: str
     results: dict[str, float]  # key -> value, e.g. {"Cu": 0.086, "Si": 2.58, ...}
@@ -65,7 +65,14 @@ def _parse_txt_format(text: str) -> ParsedFile | None:
     if not (batch and date and time):
         return None
 
-    return ParsedFile(batch=batch, date=date, time=time, results=values)
+    material = _extract_material(text)
+    return ParsedFile(
+        batch=batch,
+        material=material or "unknown",
+        date=date,
+        time=time,
+        results=values,
+    )
 
 
 def _extract_metadata(text: str) -> tuple[str | None, str | None, str | None]:
@@ -154,6 +161,47 @@ def _extract_nr_colata(text: str) -> str | None:
     return None
 
 
+def _extract_material(text: str) -> str | None:
+    """
+    Extract material from file text.
+    Supports labels like "Material:", "Materiale:" and common material tokens.
+    """
+    lines = [line.strip() for line in text.splitlines()]
+
+    for i, line in enumerate(lines):
+        if not re.search(r"\bmateriale?\b", line, re.I):
+            continue
+
+        # Same-line form: "Material: EN-GJMW 400-05"
+        same = re.search(r"\bmateriale?\b\s*:?\s*(.+)$", line, re.I)
+        if same:
+            tail = same.group(1).strip()
+            if tail and tail not in {":", "-"}:
+                if m := re.search(r"(EN-[A-Z0-9\- ]+\d(?:-\d+)?)", tail, re.I):
+                    return m.group(1).strip()
+                if m := re.search(r"(GJ[A-Z]*\s*\d+(?:-\d+)?)", tail, re.I):
+                    return m.group(1).strip()
+                return tail
+
+        # Next-line form after a material label
+        for j in range(i + 1, min(i + 4, len(lines))):
+            candidate = lines[j].strip()
+            if not candidate or candidate in {":", "-"}:
+                continue
+            if m := re.search(r"(EN-[A-Z0-9\- ]+\d(?:-\d+)?)", candidate, re.I):
+                return m.group(1).strip()
+            if m := re.search(r"(GJ[A-Z]*\s*\d+(?:-\d+)?)", candidate, re.I):
+                return m.group(1).strip()
+
+    # Fallback: material-like tokens anywhere in text.
+    if m := re.search(r"(EN-[A-Z0-9\- ]+\d(?:-\d+)?)", text, re.I):
+        return m.group(1).strip()
+    if m := re.search(r"(GJ[A-Z]*\s*\d+(?:-\d+)?)", text, re.I):
+        return m.group(1).strip()
+
+    return None
+
+
 def _extract_decimal(line: str) -> float | None:
     """Extract the first decimal number from a line, handling comma decimals."""
     m = re.search(r"<?\s*([0-9]+[.,][0-9]+)\s*>?", line)
@@ -202,6 +250,7 @@ def _parse_pdf_vertical_format(lines: list[str]) -> dict[str, float]:
 def _parse_pdf_format(text: str) -> ParsedFile | None:
     """Parse PDF tabular format (giorgietti-style): element headers + value rows."""
     batch = _extract_nr_colata(text) or "unknown"
+    material = _extract_material(text) or "unknown"
 
     date, time = _extract_datetime(text)
     if not date:
@@ -238,7 +287,13 @@ def _parse_pdf_format(text: str) -> ParsedFile | None:
     if not values:
         return None
 
-    return ParsedFile(batch=batch, date=date, time=time, results=values)
+    return ParsedFile(
+        batch=batch,
+        material=material,
+        date=date,
+        time=time,
+        results=values,
+    )
 
 
 def parse_file(path: Path) -> ParsedFile | None:
