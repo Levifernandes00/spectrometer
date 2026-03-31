@@ -111,10 +111,16 @@ def _extract_datetime(text: str) -> tuple[str | None, str | None]:
     # Separate date and time
     date_re = re.search(r"(\d{2}/\d{2}/\d{4})", text)
     time_re = re.search(r"(\d{2}:\d{2}:\d{2})", text)
-    return (
-        date_re.group(1) if date_re else None,
-        time_re.group(1) if time_re else None,
-    )
+    if date_re and time_re:
+        return date_re.group(1), time_re.group(1)
+
+    # Alternate date format: YYYY-MM-DD HH:MM:SS
+    alt = re.search(r"(\d{4})-(\d{2})-(\d{2})\s+(\d{2}:\d{2}:\d{2})", text)
+    if alt:
+        yyyy, mm, dd, time = alt.groups()
+        return f"{dd}/{mm}/{yyyy}", time
+
+    return None, None
 
 
 def _extract_nr_colata(text: str) -> str | None:
@@ -137,7 +143,60 @@ def _extract_nr_colata(text: str) -> str | None:
                 if first and first[0].isdigit():
                     return first
             break
+        if re.search(r"š?t\.\s*šarže", line, re.I):
+            # Slovenian format: "Št. šarže:" followed by batch number on next line
+            if i + 1 < len(lines):
+                next_line = lines[i + 1].strip()
+                first = next_line.split()[0] if next_line.split() else None
+                if first and first[0].isdigit():
+                    return first
+            break
     return None
+
+
+def _extract_decimal(line: str) -> float | None:
+    """Extract the first decimal number from a line, handling comma decimals."""
+    m = re.search(r"<?\s*([0-9]+[.,][0-9]+)\s*>?", line)
+    if not m:
+        return None
+    try:
+        return float(m.group(1).replace(",", "."))
+    except ValueError:
+        return None
+
+
+def _parse_pdf_vertical_format(lines: list[str]) -> dict[str, float]:
+    """
+    Parse vertical PDF format where value is on the previous line and the key is on its own line.
+    Example:
+      3,161
+      C
+    """
+    key_map = {"CEQ": "CE"}
+    valid_keys = set(PDF_KEYS) | set(key_map.keys())
+    values: dict[str, float] = {}
+
+    for i, line in enumerate(lines):
+        key = line.strip()
+        if key not in valid_keys:
+            continue
+        # Ignore noisy glyphs that can be mis-extracted as valid element symbols.
+        if i + 1 >= len(lines) or _extract_decimal(lines[i + 1]) is None:
+            continue
+        out_key = key_map.get(key, key)
+        # In this format, "V" is frequently a mis-read average marker glyph.
+        if out_key == "V":
+            continue
+        # Try the previous two lines and use the first decimal-looking value.
+        for j in (i - 1, i - 2):
+            if j < 0:
+                continue
+            val = _extract_decimal(lines[j])
+            if val is not None:
+                values[out_key] = val
+                break
+
+    return values
 
 
 def _parse_pdf_format(text: str) -> ParsedFile | None:
@@ -159,19 +218,22 @@ def _parse_pdf_format(text: str) -> ParsedFile | None:
         line = lines[i]
         parts = line.split()
         headers = [p for p in parts if p in PDF_KEYS]
-        if headers:
+        # Require at least two headers to avoid false positives from noisy single glyphs.
+        if len(headers) >= 2:
             for j in range(i + 1, min(i + 4, len(lines))):
                 val_line = lines[j]
-                nums = re.findall(r"<?\s*([0-9.]+)\s*>?", val_line)
-                nums = [n for n in nums if "." in n]
+                nums = re.findall(r"<?\s*([0-9]+[.,][0-9]+)\s*>?", val_line)
                 if len(nums) >= len(headers):
                     for k, v in zip(headers, nums):
                         try:
-                            values[k] = float(v)
+                            values[k] = float(v.replace(",", "."))
                         except ValueError:
                             pass
                     break
         i += 1
+
+    if not values:
+        values = _parse_pdf_vertical_format(lines)
 
     if not values:
         return None
