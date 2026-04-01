@@ -21,7 +21,7 @@ def get_supabase(config: dict) -> Client | None:
 
     # Optional Supabase mode: require user credentials to enable cloud sync.
     if not email or not str(email).strip() or not password or not str(password).strip():
-        print("Supabase credentials missing (email/password); running in local-only mode.")
+        print("Online Sync credentials missing (email/password); running in local-only mode.")
         return None
 
     try:
@@ -31,7 +31,7 @@ def get_supabase(config: dict) -> Client | None:
         )
         return supabase
     except Exception as exc:
-        print(f"Supabase auth failed; running in local-only mode. Reason: {exc}")
+        print(f"Online Sync auth failed; running in local-only mode. Reason: {exc}")
         return None
 
 

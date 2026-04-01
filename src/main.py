@@ -13,7 +13,7 @@ from watcher import watch_folder
 def main(config: dict, once: bool = False) -> None:
     supabase = get_supabase(config)
     if supabase:
-        print("Connected to Supabase")
+        print("Connected to Online Sync")
 
     local_db = get_local_db(config)
     if local_db:
