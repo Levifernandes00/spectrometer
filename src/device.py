@@ -10,11 +10,11 @@ from config import get_device_identifier
 
 
 def get_supabase(config: dict) -> Client | None:
-    supabase_cfg = config.get("supabase") or {}
-    url = os.environ.get("SUPABASE_URL") or supabase_cfg.get("url")
-    key = os.environ.get("SUPABASE_KEY") or supabase_cfg.get("key")
-    email = os.environ.get("SUPABASE_EMAIL") or supabase_cfg.get("email")
-    password = os.environ.get("SUPABASE_PASSWORD") or supabase_cfg.get("password")
+    online_sync_cfg = config.get("online_sync") or {}
+    url = os.environ.get("SUPABASE_URL") or online_sync_cfg.get("url")
+    key = os.environ.get("SUPABASE_KEY") or online_sync_cfg.get("key")
+    email = os.environ.get("SUPABASE_EMAIL") or online_sync_cfg.get("email")
+    password = os.environ.get("SUPABASE_PASSWORD") or online_sync_cfg.get("password")
 
     if not url or not key:
         return None

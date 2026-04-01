@@ -31,7 +31,7 @@ def test_get_supabase_missing_password_returns_none(monkeypatch):
     monkeypatch.setattr(device, "create_client", _fake_create_client)
 
     cfg = {
-        "supabase": {
+        "online_sync": {
             "url": "https://example.supabase.co",
             "key": "anon-key",
             "email": "user@example.com",
@@ -55,7 +55,7 @@ def test_get_supabase_failed_auth_returns_none(monkeypatch):
     monkeypatch.setattr(device, "create_client", lambda url, key: _Client())
 
     cfg = {
-        "supabase": {
+        "online_sync": {
             "url": "https://example.supabase.co",
             "key": "anon-key",
             "email": "user@example.com",
@@ -84,7 +84,7 @@ def test_get_supabase_valid_auth_returns_client(monkeypatch):
     monkeypatch.setattr(device, "create_client", lambda url, key: client)
 
     cfg = {
-        "supabase": {
+        "online_sync": {
             "url": "https://example.supabase.co",
             "key": "anon-key",
             "email": "user@example.com",
