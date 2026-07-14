@@ -11,7 +11,7 @@ SRC_DIR = TESTS_DIR.parent / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.append(str(SRC_DIR))
 
-from watcher import SpectrometerEventHandler, is_supported_file
+from watcher import SpectrometerEventHandler, handle_folder_change, is_supported_file
 
 
 def test_is_supported_file():
@@ -45,3 +45,28 @@ def test_event_handler_uses_destination_path_on_move():
     handler.on_moved(FileMovedEvent("/tmp/tmp.part", "/tmp/final.pdf"))
 
     assert seen == ["final.pdf"]
+
+
+def test_handle_folder_change_catches_os_error(monkeypatch, capsys):
+    def raise_permission_error(*_args, **_kwargs):
+        raise PermissionError(13, "permission denied")
+
+    monkeypatch.setattr("watcher.process_folder", raise_permission_error)
+
+    handle_folder_change({"folder": "/tmp"}, Path("/tmp/test.pdf"))
+
+    captured = capsys.readouterr()
+    assert "Error processing" in captured.out
+    assert "test.pdf" in captured.out
+
+
+def test_handle_folder_change_catches_unexpected_error(monkeypatch, capsys):
+    def raise_runtime_error(*_args, **_kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("watcher.process_folder", raise_runtime_error)
+
+    handle_folder_change({"folder": "/tmp"}, Path("/tmp/test.pdf"))
+
+    captured = capsys.readouterr()
+    assert "Unexpected error processing" in captured.out

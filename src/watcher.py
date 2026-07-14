@@ -14,6 +14,18 @@ def is_supported_file(path: str | Path) -> bool:
     return suffix in {".pdf", ".txt"}
 
 
+def handle_folder_change(config: dict, changed_path: Path) -> None:
+    """Process folder changes triggered by watcher events."""
+    try:
+        processed = process_folder(config, changed_path=changed_path)
+        if processed > 0:
+            print(f"Processed {processed} file(s)")
+    except OSError as exc:
+        print(f"Error processing {changed_path}: {exc}")
+    except Exception as exc:
+        print(f"Unexpected error processing {changed_path}: {exc}")
+
+
 class SpectrometerEventHandler(FileSystemEventHandler):
     """Handles created/moved files and triggers ingestion callback."""
 
@@ -46,13 +58,18 @@ def watch_folder(config: dict) -> None:
         print(f"Configured folder does not exist: {folder}")
         return
 
-    def on_change(_path: Path) -> None:
+    def on_change(changed_path: Path) -> None:
+        handle_folder_change(config, changed_path)
+
+    # Initial sync for any pre-existing files.
+    try:
         processed = process_folder(config)
         if processed > 0:
             print(f"Processed {processed} file(s)")
-
-    # Initial sync for any pre-existing files.
-    on_change(folder)
+    except OSError as exc:
+        print(f"Error during initial folder scan: {exc}")
+    except Exception as exc:
+        print(f"Unexpected error during initial folder scan: {exc}")
 
     observer = Observer()
     observer.schedule(SpectrometerEventHandler(on_change), str(folder), recursive=True)

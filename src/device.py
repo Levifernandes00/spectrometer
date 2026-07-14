@@ -6,7 +6,9 @@ from pathlib import Path
 
 from supabase import create_client, Client
 
-from config import get_device_identifier
+from config import get_app_dir, get_device_identifier
+
+COMPANY_ID_ENV_VAR = "SUPABASE_COMPANY_ID"
 
 
 def get_supabase(config: dict) -> Client | None:
@@ -35,18 +37,69 @@ def get_supabase(config: dict) -> Client | None:
         return None
 
 
+def get_company_id(config: dict, supabase: Client) -> str | None:
+    """Resolve company_id from env, config, or the user's sole company membership."""
+    env_value = os.environ.get(COMPANY_ID_ENV_VAR, "").strip()
+    if env_value:
+        return env_value
+
+    online_sync_cfg = config.get("online_sync") or {}
+    config_value = str(online_sync_cfg.get("company_id") or "").strip()
+    if config_value:
+        return config_value
+
+    try:
+        resp = (
+            supabase.table("company_user")
+            .select("company_id")
+            .order("created_at")
+            .execute()
+        )
+        company_ids = [
+            str(row["company_id"]).strip()
+            for row in (resp.data or [])
+            if row.get("company_id")
+        ]
+    except Exception as exc:
+        print(f"Online Sync: failed to load company memberships. Reason: {exc}")
+        return None
+
+    if len(company_ids) == 1:
+        return company_ids[0]
+
+    if not company_ids:
+        print("Online Sync: no company memberships found for this user.")
+        return None
+
+    print(
+        "Online Sync: user belongs to multiple companies. "
+        "Set online_sync.company_id in config.json or SUPABASE_COMPANY_ID."
+    )
+    return None
+
+
 def get_local_db(config: dict) -> sqlite3.Connection | None:
     db_path = config.get("database")
     if not db_path:
         return None
     path = Path(db_path)
     if not path.is_absolute():
-        path = Path(__file__).parent.parent / path
+        path = get_app_dir() / path
     return sqlite3.connect(str(path))
 
 
-def find_device_by_identifier(supabase: Client, identifier: str) -> dict | None:
-    resp = supabase.table("device").select("*").eq("identifier", identifier).execute()
+def find_device_by_identifier(
+    supabase: Client,
+    identifier: str,
+    company_id: str,
+) -> dict | None:
+    resp = (
+        supabase.table("device")
+        .select("*")
+        .eq("identifier", identifier)
+        .eq("company_id", company_id)
+        .execute()
+    )
     if resp.data and len(resp.data) > 0:
         return resp.data[0]
     return None
@@ -68,6 +121,7 @@ def create_device_supabase(
     identifier: str,
     name: str,
     place: str,
+    company_id: str,
     category: str = "Spectrometer",
     connection_details: dict | None = None,
 ) -> dict:
@@ -77,6 +131,7 @@ def create_device_supabase(
         "category": category,
         "identifier": identifier,
         "connection_details": connection_details or {},
+        "company_id": company_id,
     }
     resp = supabase.table("device").insert(data).execute()
     return resp.data[0]
@@ -132,13 +187,14 @@ def find_or_create_device(config: dict) -> dict | None:
 
     supabase = get_supabase(config)
     if supabase:
-        device = find_device_by_identifier(supabase, identifier)
-        if device:
-            return device
-        device = create_device_supabase(
-            supabase, identifier, name, place, category, connection_details
-        )
-        return device
+        company_id = get_company_id(config, supabase)
+        if company_id:
+            device = find_device_by_identifier(supabase, identifier, company_id)
+            if device:
+                return device
+            return create_device_supabase(
+                supabase, identifier, name, place, company_id, category, connection_details
+            )
 
     local_db = get_local_db(config)
     if local_db:

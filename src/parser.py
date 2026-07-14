@@ -1,6 +1,9 @@
 """Parse spectrometer output files (TXT, PDF) and extract key-value results."""
 
+import errno
+import os
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,18 +29,54 @@ PDF_KEYS = [
     "B", "Zn", "La", "Fe", "CE",
 ]
 
+_RETRYABLE_ERRNOS = {errno.EACCES, errno.EPERM, 32}
+if hasattr(errno, "ESHARING"):
+    _RETRYABLE_ERRNOS.add(errno.ESHARING)
+
+
+def _is_retryable_io_error(exc: OSError) -> bool:
+    return exc.errno in _RETRYABLE_ERRNOS
+
+
+def _read_bytes_with_retry(path: Path, retries: int = 5, delay: float = 0.5) -> bytes | None:
+    """Read file bytes, retrying on transient permission/sharing errors."""
+    last_error: OSError | None = None
+    for attempt in range(retries):
+        try:
+            return path.read_bytes()
+        except (PermissionError, OSError) as exc:
+            if not _is_retryable_io_error(exc):
+                raise
+            last_error = exc
+            if attempt < retries - 1:
+                time.sleep(delay)
+    print(f"Warning: could not read {path} after {retries} attempts: {last_error}")
+    return None
+
 
 def extract_text(path: Path) -> str:
     """Extract text from a file. Supports .txt and .pdf."""
     ext = path.suffix.lower()
     if ext == ".txt":
-        return path.read_text(encoding="utf-8", errors="replace")
+        data = _read_bytes_with_retry(path)
+        if data is None:
+            return ""
+        return data.decode("utf-8", errors="replace")
     if ext == ".pdf":
         try:
             from pypdf import PdfReader
-            reader = PdfReader(open(path, "rb"))
-            return "\n".join(reader.pages[i].extract_text() or "" for i in range(len(reader.pages)))
         except ImportError:
+            return ""
+        data = _read_bytes_with_retry(path)
+        if data is None:
+            return ""
+        try:
+            from io import BytesIO
+
+            reader = PdfReader(BytesIO(data))
+            return "\n".join(reader.pages[i].extract_text() or "" for i in range(len(reader.pages)))
+        except Exception as exc:
+            print(f"Warning: could not parse PDF {path}: {exc}")
             return ""
     return ""
 
@@ -311,12 +350,20 @@ def parse_file(path: Path) -> ParsedFile | None:
     return _parse_pdf_format(text)
 
 
+def _walk_permission_error(exc: OSError) -> None:
+    """os.walk onerror handler: skip unreadable directories."""
+    print(f"Warning: skipping unreadable path during scan: {exc.filename}")
+
+
 def find_files(folder: Path) -> list[Path]:
     """Recursively find .txt and .pdf files in folder."""
     files: list[Path] = []
     if not folder.is_dir():
         return files
-    for path in folder.rglob("*"):
-        if path.is_file() and path.suffix.lower() in (".txt", ".pdf"):
-            files.append(path)
+    for root, _dirs, filenames in os.walk(folder, onerror=_walk_permission_error):
+        root_path = Path(root)
+        for name in filenames:
+            path = root_path / name
+            if path.suffix.lower() in (".txt", ".pdf"):
+                files.append(path)
     return sorted(files)

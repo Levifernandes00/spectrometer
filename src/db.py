@@ -54,13 +54,21 @@ def find_or_create_batch_supabase(
     supabase: Client,
     name: str,
     date_str: str,
+    company_id: str,
 ) -> dict:
-    """Find batch by name+date or create in Supabase."""
+    """Find batch by name+date+company or create in Supabase."""
     date_iso = _date_to_iso_date(date_str)
-    resp = supabase.table("batch").select("*").eq("name", name).eq("date", date_iso).execute()
+    resp = (
+        supabase.table("batch")
+        .select("*")
+        .eq("name", name)
+        .eq("date", date_iso)
+        .eq("company_id", company_id)
+        .execute()
+    )
     if resp.data and len(resp.data) > 0:
         return resp.data[0]
-    data = {"name": name, "date": date_iso}
+    data = {"name": name, "date": date_iso, "company_id": company_id}
     resp = supabase.table("batch").insert(data).execute()
     return resp.data[0]
 

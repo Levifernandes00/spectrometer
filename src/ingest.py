@@ -2,8 +2,7 @@
 
 from pathlib import Path
 
-from config import load_config
-from device import find_or_create_device, get_local_db, get_supabase
+from device import find_or_create_device, get_company_id, get_local_db, get_supabase
 from db import (
     _date_to_iso,
     find_or_create_batch_local,
@@ -18,10 +17,11 @@ from parser import find_files, parse_file
 from websocket_publisher import publish_batch_material
 
 
-def process_folder(config: dict) -> int:
+def process_folder(config: dict, changed_path: Path | None = None) -> int:
     """
     Read all files in config folder, parse each, and insert results into DB.
     Uses Supabase if configured, otherwise local DB.
+    When changed_path is provided, that file is processed first.
     Returns the number of files processed.
     """
     folder_path = config.get("folder")
@@ -41,6 +41,10 @@ def process_folder(config: dict) -> int:
         return 0
 
     supabase = get_supabase(config)
+    company_id = get_company_id(config, supabase) if supabase else None
+    if supabase and not company_id:
+        supabase = None
+
     local_db = get_local_db(config)
 
     if local_db:
@@ -48,6 +52,9 @@ def process_folder(config: dict) -> int:
 
     processed = 0
     files = find_files(folder)
+    if changed_path is not None:
+        changed = Path(changed_path)
+        files = [changed] + [path for path in files if path != changed]
 
     for path in files:
         parsed = parse_file(path)
@@ -63,13 +70,14 @@ def process_folder(config: dict) -> int:
         if not results:
             continue
 
-        if supabase:
+        if supabase and company_id:
             if has_results_for_device_datetime_supabase(supabase, device_id, datetime_iso):
                 continue
             batch = find_or_create_batch_supabase(
                 supabase,
                 parsed.batch,
                 parsed.date,
+                company_id,
             )
             insert_results_supabase(
                 supabase,

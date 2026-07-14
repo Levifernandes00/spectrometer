@@ -27,3 +27,6 @@ Notes
 
 - The application expects config.json next to spectrometer.exe.
 - If config.json is missing on first run, the app may create one from template.
+- For Online Sync, set online_sync.company_id in config.json when your Supabase
+  user belongs to more than one company. If you belong to exactly one company,
+  the app can resolve it automatically after sign-in.

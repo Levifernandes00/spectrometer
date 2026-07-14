@@ -14,14 +14,18 @@ def _is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+def get_app_dir() -> Path:
+    """Return the application directory (exe dir when frozen, repo root in dev)."""
+    if _is_frozen():
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent
+
+
 def get_config_path() -> Path:
     configured = os.environ.get(CONFIG_ENV_VAR, "").strip()
     if configured:
         return Path(configured).expanduser().resolve()
-
-    if _is_frozen():
-        return Path(sys.executable).resolve().parent / CONFIG_FILENAME
-    return Path(__file__).resolve().parent.parent / CONFIG_FILENAME
+    return get_app_dir() / CONFIG_FILENAME
 
 
 def _frozen_template_path() -> Path:
@@ -61,11 +65,10 @@ def get_device_identifier(config: dict) -> str:
     """
     Return device identifier from config.
     Set "identifier" in config.json to any name you choose (e.g. "SPECT-LAB-01").
-    If not set, generates a placeholder and saves it; you can edit config.json to change it.
+    An empty string is allowed. If the key is missing, generates a placeholder and saves it.
     """
-    identifier = config.get("identifier")
-    if identifier and str(identifier).strip():
-        return str(identifier).strip()
+    if "identifier" in config:
+        return str(config.get("identifier") or "").strip()
     identifier = f"spectrometer-{uuid.uuid4().hex[:8]}"
     config["identifier"] = identifier
     save_config(config)

@@ -16,6 +16,7 @@
     "url": "https://bfbpunkaatagowuqxetu.supabase.co",
     "key": "sb_publishable_hGt6u7kH3hZXfMXOntpY0Q_crc6ZFTr",
     "email": "user@example.com",
-    "password": ""
+    "password": "",
+    "company_id": "your-company-id"
   }
 }
