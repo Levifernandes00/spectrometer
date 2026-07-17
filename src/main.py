@@ -1,13 +1,21 @@
 import argparse
+import sys
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from config import load_config
+from config import get_app_dir, get_config_path, load_config
 from device import find_or_create_device, get_local_db, get_supabase
 from ingest import process_folder
 from watcher import watch_folder
+
+
+def _print_frozen_diagnostics() -> None:
+    if not getattr(sys, "frozen", False):
+        return
+    print("Install dir:", get_app_dir())
+    print("Config:", get_config_path())
 
 
 def main(config: dict, once: bool = False) -> None:
@@ -42,5 +50,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    _print_frozen_diagnostics()
     config = load_config()
     main(config, once=args.once)

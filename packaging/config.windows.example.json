@@ -1,0 +1,22 @@
+{
+  "folder": "C:\\Spectrometer\\Export",
+  "device": {
+    "name": "Spectrometer LAB-01",
+    "place": "LABORATÓRIO",
+    "category": "Spectrometer"
+  },
+  "identifier": "SPECT-LAB-01",
+  "database": "C:\\Arca\\database.db",
+  "websocket": {
+    "enabled": false,
+    "url": "ws://192.168.1.50:9001",
+    "open_timeout": 3
+  },
+  "online_sync": {
+    "url": "https://your-project.supabase.co",
+    "key": "your-key",
+    "email": "user@example.com",
+    "password": "",
+    "company_id": "your-company-id"
+  }
+}

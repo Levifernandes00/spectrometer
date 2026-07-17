@@ -73,3 +73,28 @@ def test_get_local_db_frozen_uses_executable_dir(monkeypatch, tmp_path):
     assert conn is not None
     conn.close()
     assert (exe.parent / "spectrometer.db").exists()
+
+
+def test_frozen_load_config_creates_from_template(monkeypatch, tmp_path):
+    monkeypatch.delenv("SPECTROMETER_CONFIG", raising=False)
+    exe = tmp_path / "bin" / "spectrometer.exe"
+    exe.parent.mkdir(parents=True, exist_ok=True)
+    exe.write_text("", encoding="utf-8")
+
+    template_dir = tmp_path / "bundle"
+    template_dir.mkdir()
+    template = template_dir / "config.example.json"
+    template.write_text('{"folder": "/tmp/out", "database": "database.db"}', encoding="utf-8")
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe), raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(template_dir), raising=False)
+
+    cfg = _reload_config()
+    config_path = exe.parent / "config.json"
+    assert not config_path.exists()
+
+    loaded = cfg.load_config()
+    assert config_path.exists()
+    assert loaded["folder"] == "/tmp/out"
+    assert loaded["database"] == "database.db"
