@@ -44,6 +44,7 @@ jobs:
           pyinstaller packaging/spectrometer.spec --noconfirm --clean
           cp config.example.json dist/Spectrometer/
           cp packaging/WINDOWS_README.txt dist/Spectrometer/
+          cp packaging/WINDOWS_SETUP.md dist/Spectrometer/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

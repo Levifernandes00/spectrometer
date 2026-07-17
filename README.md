@@ -50,7 +50,9 @@ CI: push a tag `v*` or run the **Build Spectrometer Windows EXE** workflow manua
 
 This writes `config.json`, copies the exe, and adds a **Startup folder shortcut** so the watcher starts on login.
 
-See [`packaging/WINDOWS_README.txt`](packaging/WINDOWS_README.txt) and [`packaging/config.windows.example.json`](packaging/config.windows.example.json) for path examples.
+**Operator guide:** [`packaging/WINDOWS_SETUP.md`](packaging/WINDOWS_SETUP.md)
+
+See also [`packaging/WINDOWS_README.txt`](packaging/WINDOWS_README.txt) and [`packaging/config.windows.example.json`](packaging/config.windows.example.json) for path examples.
 
 ### Windows path guidance
 

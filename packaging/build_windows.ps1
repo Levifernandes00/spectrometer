@@ -25,6 +25,7 @@ if (-not (Test-Path (Join-Path $OutDir "spectrometer.exe"))) {
 
 Copy-Item -Path (Join-Path $Root "config.example.json") -Destination $OutDir -Force
 Copy-Item -Path (Join-Path $Root "packaging\WINDOWS_README.txt") -Destination $OutDir -Force
+Copy-Item -Path (Join-Path $Root "packaging\WINDOWS_SETUP.md") -Destination $OutDir -Force
 
 Write-Host ""
 Write-Host "Build complete: $OutDir"
