@@ -2,7 +2,13 @@
 
 from pathlib import Path
 
-from device import find_or_create_device, get_company_id, get_local_db, get_supabase
+from device import (
+    find_or_create_device,
+    get_company_id,
+    get_local_company_id,
+    get_local_db,
+    get_supabase,
+)
 from db import (
     _date_to_iso,
     find_or_create_batch_local,
@@ -46,6 +52,7 @@ def process_folder(config: dict, changed_path: Path | None = None) -> int:
         supabase = None
 
     local_db = get_local_db(config)
+    local_company_id = get_local_company_id(config)
 
     if local_db:
         _ensure_tables_local(local_db)
@@ -95,6 +102,7 @@ def process_folder(config: dict, changed_path: Path | None = None) -> int:
                 local_db,
                 parsed.batch,
                 parsed.date,
+                local_company_id,
             )
             insert_results_local(
                 local_db,

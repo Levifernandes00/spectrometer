@@ -1,7 +1,6 @@
 import json
 import os
 import sqlite3
-import uuid
 from pathlib import Path
 
 from supabase import create_client, Client
@@ -9,6 +8,19 @@ from supabase import create_client, Client
 from config import get_app_dir, get_device_identifier
 
 COMPANY_ID_ENV_VAR = "SUPABASE_COMPANY_ID"
+DEFAULT_LOCAL_COMPANY_ID = "default"
+
+
+def get_local_company_id(config: dict) -> str:
+    """Company id for local SQLite writes (oxpecker shared schema)."""
+    online_sync_cfg = config.get("online_sync") or {}
+    config_value = str(online_sync_cfg.get("company_id") or "").strip()
+    if config_value:
+        return config_value
+    env_value = os.environ.get(COMPANY_ID_ENV_VAR, "").strip()
+    if env_value:
+        return env_value
+    return DEFAULT_LOCAL_COMPANY_ID
 
 
 def get_supabase(config: dict) -> Client | None:
@@ -105,9 +117,14 @@ def find_device_by_identifier(
     return None
 
 
-def find_device_local(local_db: sqlite3.Connection, identifier: str) -> dict | None:
+def find_device_local(
+    local_db: sqlite3.Connection,
+    identifier: str,
+    company_id: str = DEFAULT_LOCAL_COMPANY_ID,
+) -> dict | None:
     cur = local_db.execute(
-        "SELECT * FROM Device WHERE identifier = ?", (identifier,)
+        "SELECT * FROM device WHERE identifier = ? AND company_id = ?",
+        (identifier, company_id),
     )
     row = cur.fetchone()
     if not row:
@@ -144,29 +161,38 @@ def create_device_local(
     place: str,
     category: str = "Spectrometer",
     connection_details: dict | None = None,
+    company_id: str = DEFAULT_LOCAL_COMPANY_ID,
 ) -> dict:
-    device_id = str(uuid.uuid4())
     details = json.dumps(connection_details or {})
-    local_db.execute(
+    cur = local_db.execute(
         """
-        INSERT INTO Device (id, name, place, category, identifier, connection_details)
+        INSERT INTO device (name, identifier, place, category, connection_details, company_id)
         VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (device_id, name, place, category, identifier, details),
+        (name, identifier, place, category, details, company_id),
     )
     local_db.commit()
-    return {"id": device_id, "name": name, "place": place, "category": category, "identifier": identifier}
+    return {
+        "id": cur.lastrowid,
+        "name": name,
+        "place": place,
+        "category": category,
+        "identifier": identifier,
+        "company_id": company_id,
+    }
 
 
 def ensure_device_table(local_db: sqlite3.Connection) -> None:
     local_db.execute("""
-        CREATE TABLE IF NOT EXISTS Device (
-            id TEXT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS device (
+            id INTEGER PRIMARY KEY,
+            created_at TEXT DEFAULT (datetime('now')),
             name TEXT NOT NULL,
-            place TEXT NOT NULL,
-            category TEXT NOT NULL,
-            identifier TEXT,
-            connection_details TEXT
+            place TEXT,
+            category TEXT,
+            connection_details TEXT NOT NULL,
+            identifier TEXT NOT NULL,
+            company_id TEXT NOT NULL DEFAULT 'default'
         )
     """)
     local_db.commit()
@@ -198,12 +224,19 @@ def find_or_create_device(config: dict) -> dict | None:
 
     local_db = get_local_db(config)
     if local_db:
+        company_id = get_local_company_id(config)
         ensure_device_table(local_db)
-        device = find_device_local(local_db, identifier)
+        device = find_device_local(local_db, identifier, company_id)
         if device:
             return device
         device = create_device_local(
-            local_db, identifier, name, place, category, connection_details
+            local_db,
+            identifier,
+            name,
+            place,
+            category,
+            connection_details,
+            company_id,
         )
         return device
 
