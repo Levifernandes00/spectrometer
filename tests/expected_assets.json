@@ -2,6 +2,7 @@
   "giorgietti.pdf": {
     "batch": "260009",
     "material": "GJS 400",
+    "furnace": null,
     "date": "08/01/2026",
     "time": "08:35:15",
     "results": {
@@ -39,6 +40,7 @@
   "livarna.pdf": {
     "batch": "131",
     "material": "EN-GJMW 400-05",
+    "furnace": "2",
     "date": "09/03/2026",
     "time": "10:48:44",
     "results": {

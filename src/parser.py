@@ -16,6 +16,7 @@ class ParsedFile:
     date: str
     time: str
     results: dict[str, float]  # key -> value, e.g. {"Cu": 0.086, "Si": 2.58, ...}
+    furnace: str | None = None
 
 
 # Keys extracted from TXT format (matches Tauri spectometer)
@@ -105,12 +106,14 @@ def _parse_txt_format(text: str) -> ParsedFile | None:
         return None
 
     material = _extract_material(text)
+    furnace = _extract_furnace(text)
     return ParsedFile(
         batch=batch,
         material=material or "unknown",
         date=date,
         time=time,
         results=values,
+        furnace=furnace,
     )
 
 
@@ -197,6 +200,30 @@ def _extract_nr_colata(text: str) -> str | None:
                 if first and first[0].isdigit():
                     return first
             break
+    return None
+
+
+def _extract_furnace(text: str) -> str | None:
+    """
+    Extract Peč (furnace) from PDF/TXT text.
+    Supports title line "Peč 2", same-line "Peč: 2", or label on one line with value on next.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+    for line in lines[:8]:
+        if m := re.match(r"(?i)^Peč\s+(\S+)$", line):
+            return m.group(1).strip()
+
+    for i, line in enumerate(lines):
+        if m := re.search(r"(?i)Peč\s*:\s*(\S+)", line):
+            return m.group(1).strip()
+        if re.match(r"(?i)^Peč\s*:?\s*$", line):
+            for j in range(i + 1, min(i + 4, len(lines))):
+                candidate = lines[j].strip()
+                if candidate and candidate[0].isdigit():
+                    return candidate.split()[0]
+            break
+
     return None
 
 
@@ -290,6 +317,7 @@ def _parse_pdf_format(text: str) -> ParsedFile | None:
     """Parse PDF tabular format (giorgietti-style): element headers + value rows."""
     batch = _extract_nr_colata(text) or "unknown"
     material = _extract_material(text) or "unknown"
+    furnace = _extract_furnace(text)
 
     date, time = _extract_datetime(text)
     if not date:
@@ -332,6 +360,7 @@ def _parse_pdf_format(text: str) -> ParsedFile | None:
         date=date,
         time=time,
         results=values,
+        furnace=furnace,
     )
 
 

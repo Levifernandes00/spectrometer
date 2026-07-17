@@ -24,10 +24,15 @@ def load_expected() -> dict:
 
 
 def discover_assets() -> list[Path]:
-    return sorted(
-        p for p in ASSETS_DIR.iterdir()
-        if p.is_file() and p.suffix.lower() in (".pdf", ".txt")
-    )
+    paths: list[Path] = []
+    for folder in (ASSETS_DIR, TESTS_DIR):
+        if not folder.is_dir():
+            continue
+        paths.extend(
+            p for p in folder.iterdir()
+            if p.is_file() and p.suffix.lower() in (".pdf", ".txt")
+        )
+    return sorted({p.resolve() for p in paths}, key=lambda p: p.name)
 
 
 def test_expected_fixture_matches_assets_folder():
@@ -45,6 +50,7 @@ def test_asset_parsing_matches_expected_properties(asset_path: Path):
     assert parsed is not None, f"Parser returned None for {asset_path.name}"
     assert parsed.batch == expected["batch"]
     assert parsed.material == expected["material"]
+    assert parsed.furnace == expected.get("furnace")
     assert parsed.date == expected["date"]
     assert parsed.time == expected["time"]
     assert parsed.results == expected["results"]

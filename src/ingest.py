@@ -1,5 +1,6 @@
 """Scan folder, parse files, and insert results into the database."""
 
+import json
 from pathlib import Path
 
 from device import (
@@ -19,8 +20,21 @@ from db import (
     insert_results_supabase,
     _ensure_tables_local,
 )
-from parser import find_files, parse_file
+from parser import ParsedFile, find_files, parse_file
 from websocket_publisher import publish_batch_material
+
+
+def _build_result_obs(parsed: ParsedFile) -> str:
+    """Oxpecker-compatible metadata JSON for result.obs."""
+    return json.dumps(
+        {
+            "fusion": parsed.batch,
+            "material": parsed.material,
+            "furnace": parsed.furnace or "",
+            "date": parsed.date,
+            "hour": parsed.time,
+        }
+    )
 
 
 def process_folder(config: dict, changed_path: Path | None = None) -> int:
@@ -69,8 +83,9 @@ def process_folder(config: dict, changed_path: Path | None = None) -> int:
             continue
 
         datetime_iso = _date_to_iso(parsed.date, parsed.time)
+        result_obs = _build_result_obs(parsed)
         results = [
-            {"key": k, "value": v, "obs": None}
+            {"key": k, "value": v, "obs": result_obs}
             for k, v in parsed.results.items()
         ]
 
